@@ -1,0 +1,17 @@
+{
+  "name": "devicepeek",
+  "version": "2.2.0",
+  "private": true,
+  "description": "DevicePeek – side-by-side responsive preview Chrome extension (Manifest V3). The extension itself is in ./devicepeek; this package only holds the developer tooling.",
+  "scripts": {
+    "setup": "npm install && npx playwright install chromium",
+    "check": "node scripts/check.js",
+    "test": "node scripts/check.js && node tests/e2e.js",
+    "test:viewport": "node tests/viewport.js",
+    "test:all": "node scripts/check.js && node tests/e2e.js && node tests/viewport.js",
+    "package": "node scripts/check.js && node scripts/package.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
