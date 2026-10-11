@@ -74,6 +74,23 @@ const ok = (c, name, x) => { total++; if (!c) fails++; if (!c) console.log('FAIL
       }
     }
   }
+  // the device frame is drawn around the viewport, never inside it: same sizes without it
+  await save({ showFrame: false, mode: 'side', panelWidth: 430 });
+  for (const id of ['iphone15pro', 'iphonese', 'ipadmini']) {
+    for (const z of ['fit', 1]) {
+      await save({ deviceId: id, landscape: false, zoom: z });
+      await sleep(250);
+      let m;
+      for (let i = 0; i < 20; i++) {
+        try { m = await measure(); } catch (e) { m = null; }
+        if (m && m.inner.w === sizes[id][0] && m.inner.h === sizes[id][1]) break;
+        await sleep(150);
+      }
+      ok(m && m.inner.w === sizes[id][0] && m.inner.h === sizes[id][1], `no frame ${id} zoom=${z}`, m);
+    }
+  }
+  await save({ showFrame: true });
+
   // breakpoint check on a page that zooms <html>
   await save({ mode: 'side', panelWidth: 430, deviceId: 'iphone15pro', landscape: false, zoom: 1, debugHud: true });
   await page.goto('http://localhost:5397/');

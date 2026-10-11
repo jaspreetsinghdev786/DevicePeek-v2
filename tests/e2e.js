@@ -52,6 +52,45 @@ async function waitFor(fn, ms = 6000) {
       return toggleTab(t);
     });
   const previewFrame = () => page.frames().find((f) => f !== page.mainFrame() && f.name().startsWith('__dp:'));
+  // The panel UI is a closed shadow root. The extension's isolated world can still reach it
+  // (DevicePeek.activePanel._testRoot), so buttons are found by selector, then clicked for real.
+  const rectOf = (selector) =>
+    sw.evaluate(async (sel) => {
+      const [t] = await chrome.tabs.query({ active: true, url: 'http://localhost/*' });
+      const [r] = await chrome.scripting.executeScript({
+        target: { tabId: t.id },
+        args: [sel],
+        func: (s) => {
+          const p = globalThis.DevicePeek && DevicePeek.activePanel;
+          const el = p && p._testRoot.querySelector(s);
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return { x: b.x + b.width / 2, y: b.y + b.height / 2, left: b.x, top: b.y, w: b.width, h: b.height };
+        }
+      });
+      return r.result;
+    }, selector);
+  const panelAttr = (sel, attr) =>
+    sw.evaluate(
+      async ([s, a]) => {
+        const [t] = await chrome.tabs.query({ active: true, url: 'http://localhost/*' });
+        const [r] = await chrome.scripting.executeScript({
+          target: { tabId: t.id },
+          args: [s, a],
+          func: (s2, a2) => {
+            const el = DevicePeek.activePanel && DevicePeek.activePanel._testRoot.querySelector(s2);
+            return el ? el.getAttribute(a2) : null;
+          }
+        });
+        return r.result;
+      },
+      [sel, attr]
+    );
+  const clickEl = async (sel) => {
+    const r = await rectOf(sel);
+    if (!r) throw new Error('panel element not found: ' + sel);
+    await page.mouse.click(r.x, r.y);
+  };
   const hostInfo = () =>
     page.evaluate(() => {
       const h = document.querySelector('devicepeek-root');
@@ -206,10 +245,12 @@ async function waitFor(fn, ms = 6000) {
   ok(info.host && !info.dockStyle && info.marginRight === '0px', 'floating mode: page not narrowed', info);
   ok(fr.w === 420 && fr.x === 1400 - 420 - 16 && fr.y === 16, 'floating default rect', fr);
   const fvW = await previewFrame().evaluate(() => innerWidth);
-  // move by dragging an empty spot of toolbar row 2
-  await page.mouse.move(fr.x + 230, fr.y + 53);
+  // move by dragging the title bar (the host name text is an empty, draggable spot)
+  const tb = await rectOf('.dp-title-host');
+  ok(!!tb && tb.y - fr.y < 30, 'floating window has a title bar', tb);
+  await page.mouse.move(tb.left + 10, tb.y);
   await page.mouse.down();
-  await page.mouse.move(fr.x + 230 - 300, fr.y + 53 + 50, { steps: 10 });
+  await page.mouse.move(tb.left + 10 - 300, tb.y + 50, { steps: 10 });
   await page.mouse.up();
   await sleep(500);
   let fr2 = await rect();
@@ -225,46 +266,73 @@ async function waitFor(fn, ms = 6000) {
   const savedF = await sw.evaluate(() => DevicePeek.prefs.load());
   ok(savedF.floatX === fr3.x && savedF.floatY === fr3.y && savedF.floatW === fr3.w && savedF.floatH === fr3.h, 'floating rect persisted', savedF);
   ok((await previewFrame().evaluate(() => innerWidth)) === fvW, 'viewport unchanged by window resize (iframe not reloaded)');
-  // minimize / restore / maximize via toolbar buttons (right end of row 1; 420px wide = single row)
+  // minimize / restore / maximize via the title bar buttons
   await sw.evaluate(() => DevicePeek.prefs.save({ floatW: 420 }));
   await sleep(400);
   fr3 = await rect();
-  const closeX = fr3.x + fr3.w - 1 - 8 - 14, row1Y = fr3.y + 1 + 6 + 14;
-  await page.mouse.click(closeX - 64, row1Y); // minimize
+  await clickEl('button[aria-label="Minimize"]');
   await sleep(400);
   const frMin = await rect();
-  ok(frMin.h < 120 && frMin.w === fr3.w, 'minimize collapses to toolbar', frMin);
-  await page.mouse.click(closeX - 64, row1Y); // expand
+  ok(frMin.h < 60 && frMin.w === fr3.w, 'minimize collapses to the title bar', frMin);
+  await clickEl('button[aria-label="Expand"]');
   await sleep(400);
   ok((await rect()).h === fr3.h, 'expand restores height');
-  await page.mouse.click(closeX - 32, row1Y); // maximize
+  await clickEl('button[aria-label="Maximize"]');
   await sleep(400);
   const frMax = await rect();
   ok(frMax.x === 0 && frMax.y === 0 && frMax.w === 1400 && frMax.h === 900, 'maximize fills viewport', frMax);
-  await page.mouse.click(1400 - 1 - 8 - 14 - 32, 1 + 6 + 14); // restore
+  await clickEl('button[aria-label="Restore size"]');
   await sleep(400);
   ok(JSON.stringify(await rect()) === JSON.stringify(fr3), 'restore returns to saved rect');
+  await clickEl('button[aria-label="Maximize"]');
+  await sleep(400);
+  const tbMax = await rectOf('.dp-title-host');
+  await page.mouse.dblclick(tbMax.left + 10, tbMax.y);
+  await sleep(400);
+  ok(JSON.stringify(await rect()) === JSON.stringify(fr3), 'double-click on the title bar restores a maximized window', await rect());
   // reload keeps floating window where it was
   await page.reload();
   await waitFor(async () => (await hostInfo()).host);
   await sleep(600);
   ok(JSON.stringify(await rect()) === JSON.stringify(fr3), 'floating position survives reload', await rect());
   // dock button switches back
-  await page.mouse.click(fr3.x + fr3.w - 1 - 8 - 14 - 96, fr3.y + 1 + 6 + 14);
+  await clickEl('button[aria-label^="Dock to the right"]');
   await sleep(600);
   info = await hostInfo();
   ok(info.marginRight === '530px' && Math.round(info.hostWidth) === 530, 'dock button returns to side-by-side', info);
+  // regression (2.2.0): the floating left/height used to stick, leaving the docked panel mid-screen
+  const docked = await rect();
+  ok(docked.x === 1400 - 530 && docked.y === 0 && docked.h === 900, 'docked again: panel at the right edge, full height', docked);
   await sw.evaluate(() => DevicePeek.prefs.save({ mode: 'side' }));
   await sleep(400);
+
+  // ---- zoom stepper, device frame and theme
+  await sw.evaluate(() => DevicePeek.prefs.save({ deviceId: 'iphone15pro', zoom: 1, landscape: false }));
+  await sleep(1500);
+  await clickEl('button[aria-label="Zoom out"]');
+  await sleep(300);
+  ok((await sw.evaluate(() => DevicePeek.prefs.load().then((p) => p.zoom))) === 0.9, 'zoom out steps 100% → 90%');
+  await clickEl('button[aria-label="Zoom in"]');
+  await sleep(300);
+  ok((await sw.evaluate(() => DevicePeek.prefs.load().then((p) => p.zoom))) === 1, 'zoom in steps back to 100%');
+  const frameOn = await rectOf('.dp-bezel');
+  const vpOn = await previewFrame().evaluate(() => [innerWidth, innerHeight]);
+  await clickEl('button[aria-label="Device frame"]');
+  await sleep(400);
+  const frameOff = await rectOf('.dp-bezel');
+  const vpOff = await previewFrame().evaluate(() => [innerWidth, innerHeight]);
+  ok(frameOn.w > frameOff.w && frameOff.w === 393, 'frame toggle adds/removes the bezel around the viewport', [frameOn.w, frameOff.w]);
+  ok(vpOn[0] === 393 && vpOff[0] === 393 && vpOn[1] === 852 && vpOff[1] === 852, 'frame never changes the viewport', [vpOn, vpOff]);
+  await sw.evaluate(() => DevicePeek.prefs.save({ showFrame: true, theme: 'light' }));
+  await sleep(300);
+  ok((await panelAttr('.dp', 'data-theme')) === 'light', 'panel follows the theme setting');
+  await sw.evaluate(() => DevicePeek.prefs.save({ theme: 'dark' }));
 
   // ---- screenshot (use 100% zoom so output is full size)
   await sw.evaluate(() => DevicePeek.prefs.save({ deviceId: 'iphone15pro', zoom: 'fit' }));
   await sleep(1500);
   const dlP = page.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-  // click the camera button via coordinates is brittle (closed shadow); trigger through keyboard-free path:
-  // locate by accessibility tree instead
-  // closed shadow root: click by position (camera = right end of toolbar row 2)
-  await page.mouse.click(1400 - 8 - 14, 6 + 28 + 4 + 14);
+  await clickEl('button[aria-label="Screenshot of the preview"]');
   const dl = await dlP;
   ok(!!dl && /^devicepeek-iphone-15-pro-localhost\.png$/.test(dl.suggestedFilename()), 'screenshot downloaded with clean name', dl && dl.suggestedFilename());
   if (dl) {
@@ -307,6 +375,17 @@ async function waitFor(fn, ms = 6000) {
     ok(inner && inner[0] === '/about' && /Android/.test(inner[1]) && msgs.includes('hello') && msgs.includes('frameload'), 'compat engine: inner frame loads, emulates, relays', { inner, msgs });
     await cp.close();
   }
+
+  // ---- unreachable page / error page inside the preview shows the blocked message
+  // (regression: the old document's "unload" message is dropped when an error page replaces it)
+  await page.goto(BASE + '/');
+  await waitFor(async () => previewFrame() && (await previewFrame().evaluate(() => location.pathname)) === '/');
+  await sleep(400);
+  await previewFrame().evaluate(() => location.replace('http://localhost:9/'));
+  const blockedShown = await waitFor(async () => (await panelAttr('.dp-msg', 'hidden')) === null, 6000);
+  ok(!!blockedShown, 'error page in the preview shows the "prevents embedded previews" message');
+  await clickEl('.dp-msg-actions .dp-primary'); // Retry
+  await sleep(300);
 
   // ---- tab history not polluted by preview navigation
   await page.goto(BASE + '/');
