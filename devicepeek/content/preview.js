@@ -42,7 +42,12 @@
     let dpr = 3;
     let state = 'idle'; // idle | loading | ready | blocked
     let connected = false; // a frame agent answered for the current document
-    let helloSeen = false;
+    // Blocked/error detection: every document the frame agent runs in says "hello" (at
+    // document start, so before its load event). A load event with no hello since the
+    // previous one is an error page or a refused frame. This doesn't depend on the old
+    // document's "unload" message, which Chrome drops when an error page replaces it.
+    let helloSinceLoad = false;
+    let awaitingHello = false; // a load arrived without a hello; grace period running
     let blockTimer = 0;
     let currentUrl = '';
     let title = '';
@@ -63,9 +68,15 @@
       if (!d || d.__dp !== 1 || typeof d.evt !== 'string') return;
       switch (d.evt) {
         case 'hello':
-          helloSeen = true;
+          if (awaitingHello) {
+            awaitingHello = false; // late hello for the document that just loaded
+            clearTimeout(blockTimer);
+          } else if (state !== 'blocked') {
+            // (After 'blocked' this is a very late hello for the document already shown;
+            // it must not count for the next load.)
+            helloSinceLoad = true;
+          }
           connected = true;
-          clearTimeout(blockTimer);
           title = String(d.title || '');
           // After a hard load the requested URL is already recorded; a redirect replaces it.
           record(String(d.href || ''), hardLoad ? 'replace' : 'push');
@@ -81,7 +92,7 @@
           events.onLocation(currentUrl, title);
           break;
         case 'unload':
-          helloSeen = false;
+          helloSinceLoad = false;
           connected = false;
           setState('loading');
           break;
@@ -122,19 +133,25 @@
 
     function onLoad() {
       clearTimeout(blockTimer);
-      if (helloSeen) return;
+      // Still 'loading' means no hello arrived since this navigation started (a hello switches
+      // to 'ready'), so a set flag is left over from an earlier document.
+      const fresh = helloSinceLoad && state !== 'loading';
+      helloSinceLoad = false;
+      if (fresh) return;
+      awaitingHello = true;
       blockTimer = setTimeout(() => {
-        if (!helloSeen) {
-          connected = false;
-          setState('blocked', { url: currentUrl });
-        }
+        if (!awaitingHello) return;
+        awaitingHello = false;
+        connected = false;
+        setState('blocked', { url: currentUrl });
       }, BLOCK_GRACE_MS);
     }
 
     function build(url) {
       clearTimeout(blockTimer);
       if (iframe) iframe.remove();
-      helloSeen = false;
+      helloSinceLoad = false;
+      awaitingHello = false;
       connected = false;
       hardLoad = true;
       const name = frameName(os, dpr);

@@ -29,7 +29,27 @@
     minimize: [['path', { d: 'M6 12h12' }]],
     maximize: [['rect', { x: 5, y: 5, width: 14, height: 14, rx: 1.5 }]],
     restore: [['rect', { x: 5, y: 8, width: 11, height: 11, rx: 1.5 }], ['path', { d: 'M8 5h9.5A1.5 1.5 0 0 1 19 6.5V16' }]],
-    phone: [['rect', { x: 7, y: 2.5, width: 10, height: 19, rx: 2.5 }], ['path', { d: 'M11 18.5h2' }]]
+    phone: [['rect', { x: 7, y: 2.5, width: 10, height: 19, rx: 2.5 }], ['path', { d: 'M11 18.5h2' }]],
+    tablet: [['rect', { x: 4, y: 3, width: 16, height: 18, rx: 2.5 }], ['path', { d: 'M11 18h2' }]],
+    frame: [['rect', { x: 5.5, y: 2, width: 13, height: 20, rx: 3.5 }], ['rect', { x: 8, y: 4.5, width: 8, height: 15, rx: 1.2 }]],
+    zoomIn: [['path', { d: 'M12 6v12M6 12h12' }]],
+    zoomOut: [['path', { d: 'M6 12h12' }]],
+    lock: [['rect', { x: 5, y: 10.5, width: 14, height: 10, rx: 2 }], ['path', { d: 'M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5' }]],
+    globe: [['circle', { cx: 12, cy: 12, r: 8.5 }], ['path', { d: 'M3.5 12h17M12 3.5c2.6 2.4 2.6 14.6 0 17M12 3.5c-2.6 2.4-2.6 14.6 0 17' }]],
+    grip: [
+      ['circle', { cx: 9, cy: 7, r: 0.6 }],
+      ['circle', { cx: 15, cy: 7, r: 0.6 }],
+      ['circle', { cx: 9, cy: 12, r: 0.6 }],
+      ['circle', { cx: 15, cy: 12, r: 0.6 }],
+      ['circle', { cx: 9, cy: 17, r: 0.6 }],
+      ['circle', { cx: 15, cy: 17, r: 0.6 }]
+    ],
+    check: [['path', { d: 'M5 12.5l4.5 4.5L19 7.5' }]],
+    info: [['circle', { cx: 12, cy: 12, r: 8.5 }], ['path', { d: 'M12 11v5M12 8v.01' }]],
+    sun: [['circle', { cx: 12, cy: 12, r: 4 }], ['path', { d: 'M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4' }]],
+    moon: [['path', { d: 'M19.5 14.5A7.5 7.5 0 1 1 9.5 4.5a6 6 0 0 0 10 10z' }]],
+    system: [['rect', { x: 3, y: 4, width: 18, height: 12.5, rx: 2 }], ['path', { d: 'M8.5 20h7M12 16.5V20' }]],
+    chevron: [['path', { d: 'M7 10l5 5 5-5' }]]
   };
 
   function icon(name, size) {

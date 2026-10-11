@@ -41,32 +41,33 @@
       const y = clamp(prefs.floatY == null ? 16 : prefs.floatY, 0, Math.max(0, vh - hh));
       return { x, y, w, h: hh };
     }
-    const minimizedHeight = () => Math.ceil(toolbar.getBoundingClientRect().height) + 2;
+    const minimizedHeight = () => Math.ceil(titlebar.getBoundingClientRect().height) + 2;
 
+    // The host's inline style is rebuilt from scratch every time. (Setting `all: initial` on
+    // top of the previous inline style does not clear longhands that were already set with
+    // !important, so the floating left/height used to leak into docked mode.)
+    // cssText is CSSOM, so a page's CSP can't block it.
     function placeHost() {
-      const s = host.style;
-      const set = (k, v) => s.setProperty(k, v, 'important');
-      set('all', 'initial');
-      set('position', 'fixed');
-      set('z-index', '2147483647');
-      set('display', 'block');
+      const decl = { all: 'initial', position: 'fixed', 'z-index': '2147483647', display: 'block' };
       // A page that sets CSS zoom on <html> would also shrink/enlarge the preview viewport.
       // Cancel it so 1 viewport px stays 1 CSS px.
       const pageZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-      if (Math.abs(pageZoom - 1) > 0.001) set('zoom', String(1 / pageZoom));
+      if (Math.abs(pageZoom - 1) > 0.001) decl.zoom = String(1 / pageZoom);
       if (isFloating()) {
         const r = liveRect || floatRect();
-        set('left', `${r.x}px`);
-        set('top', `${r.y}px`);
-        set('width', `${r.w}px`);
-        set('height', `${minimized ? minimizedHeight() : r.h}px`);
+        Object.assign(decl, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${minimized ? minimizedHeight() : r.h}px` });
       } else {
-        set('top', '0');
-        set('right', '0');
-        set('bottom', '0');
-        set('width', `${width}px`);
+        Object.assign(decl, { top: '0', right: '0', bottom: '0', width: `${width}px` });
+      }
+      const css = Object.entries(decl)
+        .map(([k, v]) => `${k}: ${v} !important;`)
+        .join(' ');
+      if (css !== lastHostCss || !host.style.length) {
+        lastHostCss = css;
+        host.style.cssText = css;
       }
     }
+    let lastHostCss = '';
     const root = host.attachShadow({ mode: 'closed' });
     try {
       const sheet = new CSSStyleSheet();
@@ -81,15 +82,20 @@
     // ------------------------------------------------------------------ helpers
     const iconBtn = (name, label, onclick, cls) =>
       h('button', { class: `dp-btn dp-icon${cls ? ' ' + cls : ''}`, type: 'button', title: label, 'aria-label': label, onclick }, icon(name));
+    const group = (cls, ...kids) => h('div', { class: `dp-group${cls ? ' ' + cls : ''}` }, ...kids);
 
     // ------------------------------------------------------------------ toolbar
-    const deviceSelect = h('select', { class: 'dp-select dp-device-select', 'aria-label': 'Device', title: 'Device' });
+    // Row 1: device picker · size + rotate · window controls
+    // Row 2: navigation · follow/sync/frame toggles · zoom stepper · screenshot
+    const deviceSelect = h('select', { class: 'dp-select', 'aria-label': 'Device', title: 'Device' });
     devices.fillSelect(deviceSelect);
+    const deviceGlyph = h('span', { class: 'dp-field-ico', 'aria-hidden': 'true' });
+    const deviceField = h('label', { class: 'dp-field dp-device-field' }, deviceGlyph, deviceSelect, h('span', { class: 'dp-caret', 'aria-hidden': 'true' }, icon('chevron', 14)));
     const inW = h('input', { class: 'dp-num', type: 'number', min: P.LIMITS.dimMin, max: P.LIMITS.dimMax, 'aria-label': 'Viewport width', title: 'Width (CSS px)' });
     const inH = h('input', { class: 'dp-num', type: 'number', min: P.LIMITS.dimMin, max: P.LIMITS.dimMax, 'aria-label': 'Viewport height', title: 'Height (CSS px)' });
-    const btnRotate = iconBtn('rotate', 'Rotate (portrait / landscape)', () => P.save({ landscape: !prefs.landscape }));
-    const btnShot = iconBtn('camera', 'Screenshot of the preview', () => screenshot());
-    const btnClose = iconBtn('close', 'Close DevicePeek', () => onRequestClose());
+    const btnRotate = iconBtn('rotate', 'Rotate (portrait / landscape)', () => P.save({ landscape: !prefs.landscape }), 'dp-toggle');
+    const btnShot = h('button', { class: 'dp-btn dp-shot', type: 'button', title: 'Save a PNG of the preview screen', 'aria-label': 'Screenshot of the preview', onclick: () => screenshot() }, icon('camera'));
+    const btnClose = iconBtn('close', 'Close DevicePeek', () => onRequestClose(), 'dp-close');
     const btnMode = iconBtn('float', 'Pop out as floating window', () => P.save({ mode: isFloating() ? 'side' : 'floating' }));
     const btnMin = iconBtn('minimize', 'Minimize', () => setMinimized(!minimized), 'dp-float-only');
     const btnMax = iconBtn('maximize', 'Maximize', () => setMaximized(!maximized), 'dp-float-only');
@@ -98,84 +104,125 @@
     const btnReload = iconBtn('reload', 'Reload preview', () => preview.reload());
     const btnFollow = iconBtn('follow', 'Follow desktop page', () => P.save({ followPage: !prefs.followPage }), 'dp-toggle');
     const btnSync = iconBtn('sync', 'Sync scroll', () => P.save({ syncScroll: !prefs.syncScroll }), 'dp-toggle');
+    const btnFrame = iconBtn('frame', 'Device frame', () => P.save({ showFrame: !prefs.showFrame }), 'dp-toggle');
+    const btnZoomOut = iconBtn('zoomOut', 'Zoom out', () => stepZoom(-1));
+    const btnZoomIn = iconBtn('zoomIn', 'Zoom in', () => stepZoom(1));
     const zoomSelect = h(
       'select',
-      { class: 'dp-select dp-zoom', 'aria-label': 'Zoom', title: 'Zoom' },
+      { class: 'dp-select dp-zoom', 'aria-label': 'Zoom', title: 'Zoom (only changes how big the preview looks)' },
       h('option', { value: 'fit', text: 'Fit' }),
-      h('option', { value: '0.5', text: '50%' }),
-      h('option', { value: '0.75', text: '75%' }),
-      h('option', { value: '1', text: '100%' }),
-      h('option', { value: '1.25', text: '125%' }),
-      h('option', { value: 'custom', text: 'Custom…' })
+      ...P.ZOOM_PRESETS.filter((z) => z !== 'fit').map((z) => h('option', { value: String(z), text: `${Math.round(z * 100)}%` }))
     );
-    const zoomInput = h('input', { class: 'dp-num dp-zoom-custom', type: 'number', min: 10, max: 300, step: 5, 'aria-label': 'Custom zoom in percent', title: 'Zoom %', hidden: true });
+    // A zoom that isn't a preset (from − / + or typed in) is shown as its own entry.
+    const zoomCurrent = h('option', { value: 'current' });
+    const zoomCustom = h('option', { value: 'custom', text: 'Custom…' });
+    zoomSelect.append(zoomCurrent, zoomCustom);
+    // Typing a zoom swaps the menu for a number field in the same spot (the bar never reflows).
+    const zoomInput = h('input', { class: 'dp-num dp-zoom-custom', type: 'number', min: 10, max: 300, step: 5, 'aria-label': 'Custom zoom in percent', title: 'Zoom % (Enter to apply)', hidden: true });
 
-    const toolbar = h(
+    // Window controls live in row 1 when docked and move to the title bar when floating.
+    const winControls = h('div', { class: 'dp-win' }, btnMin, btnMax, btnMode, btnClose);
+    const row1 = h(
       'div',
-      { class: 'dp-toolbar', role: 'toolbar', 'aria-label': 'DevicePeek' },
-      h('div', { class: 'dp-row' }, deviceSelect, h('div', { class: 'dp-dims' }, inW, h('span', { class: 'dp-x', text: '×' }), inH), btnRotate, h('span', { class: 'dp-win' }, btnMode, btnMin, btnMax, btnClose)),
-      h(
-        'div',
-        { class: 'dp-row' },
-        btnBack,
-        btnFwd,
-        btnReload,
-        h('span', { class: 'dp-sep' }),
-        btnFollow,
-        btnSync,
-        h('span', { class: 'dp-flex' }),
-        zoomSelect,
-        zoomInput,
-        btnShot
-      )
+      { class: 'dp-row' },
+      deviceField,
+      group('dp-dims', inW, h('span', { class: 'dp-x', text: '×', 'aria-hidden': 'true' }), inH, h('span', { class: 'dp-vsep', 'aria-hidden': 'true' }), btnRotate),
+      winControls
+    );
+    const row2 = h(
+      'div',
+      { class: 'dp-row' },
+      group('dp-nav', btnBack, btnFwd, btnReload),
+      group('dp-toggles', btnFollow, btnSync, btnFrame),
+      group('dp-zoom-group', btnZoomOut, zoomSelect, zoomInput, btnZoomIn),
+      btnShot
+    );
+    const toolbar = h('div', { class: 'dp-toolbar', role: 'toolbar', 'aria-label': 'DevicePeek' }, h('div', { class: 'dp-bar' }, row1, row2));
+
+    // Floating window title bar: drag to move, double-click to maximize.
+    const titleHost = h('span', { class: 'dp-title-host' });
+    const titlebar = h(
+      'div',
+      { class: 'dp-titlebar' },
+      h('span', { class: 'dp-grip', 'aria-hidden': 'true' }, icon('grip')),
+      h('span', { class: 'dp-title-brand', text: 'DevicePeek' }),
+      titleHost
     );
 
     // ------------------------------------------------------------------ stage
+    // .dp-bezel is the optional device frame. It carries the zoom transform; the viewport
+    // (.dp-device) inside it is always exactly W×H CSS px and never covered by the frame.
     const progress = h('div', { class: 'dp-progress', hidden: true });
     const device = h('div', { class: 'dp-device' });
-    const sizer = h('div', { class: 'dp-sizer' }, device);
+    const bezel = h(
+      'div',
+      { class: 'dp-bezel' },
+      device,
+      h('span', { class: 'dp-bz dp-bz-cam', 'aria-hidden': 'true' }),
+      h('span', { class: 'dp-bz dp-bz-speaker', 'aria-hidden': 'true' }),
+      h('span', { class: 'dp-bz dp-bz-home', 'aria-hidden': 'true' }),
+      h('span', { class: 'dp-bz dp-bz-power', 'aria-hidden': 'true' }),
+      h('span', { class: 'dp-bz dp-bz-vol', 'aria-hidden': 'true' })
+    );
+    const sizer = h('div', { class: 'dp-sizer' }, bezel);
+    const msgIcon = h('div', { class: 'dp-msg-icon' }, icon('warning', 22));
     const msgTitle = h('div', { class: 'dp-msg-title' });
     const msgBody = h('div', { class: 'dp-msg-body' });
     const msgActions = h('div', { class: 'dp-msg-actions' });
-    const message = h('div', { class: 'dp-msg', hidden: true, role: 'alert' }, h('div', { class: 'dp-msg-icon' }, icon('warning', 22)), msgTitle, msgBody, msgActions);
+    const message = h('div', { class: 'dp-msg', hidden: true, role: 'alert' }, msgIcon, msgTitle, msgBody, msgActions);
     const stage = h('div', { class: 'dp-stage' }, sizer, message);
     const hud = h('pre', { class: 'dp-hud', hidden: true, 'aria-live': 'polite' });
     const stageWrap = h('div', { class: 'dp-stage-wrap' }, progress, stage, hud);
 
     // ------------------------------------------------------------------ status bar
-    const address = h('input', { class: 'dp-address', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Preview address' });
+    const address = h('input', { class: 'dp-address', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Preview address', placeholder: 'Type a URL or /path' });
+    const addressIcon = h('span', { class: 'dp-addr-ico', 'aria-hidden': 'true' });
+    const addressField = h('label', { class: 'dp-addr' }, addressIcon, address);
+    const engineBadge = h('span', { class: 'dp-badge', hidden: true, title: "Compatibility mode: the preview runs inside an extension page because this site's security policy blocks frames.", text: 'compat' });
     const meta = h('button', { class: 'dp-meta', type: 'button', onclick: () => P.save({ debugHud: !prefs.debugHud }) });
-    const statusbar = h('div', { class: 'dp-status' }, address, meta);
+    const statusbar = h('div', { class: 'dp-status' }, addressField, engineBadge, meta);
 
     const resizer = h('div', {
       class: 'dp-resizer',
       role: 'separator',
       'aria-orientation': 'vertical',
       'aria-label': 'Resize preview panel',
+      'aria-valuemin': String(P.LIMITS.panelMin),
       title: 'Drag to resize · double-click to reset',
       tabindex: '0'
     });
-    const toast = h('div', { class: 'dp-toast', role: 'status' });
+    const toastIcon = h('span', { class: 'dp-toast-ico', 'aria-hidden': 'true' });
+    const toastText = h('span');
+    const toast = h('div', { class: 'dp-toast', role: 'status' }, toastIcon, toastText);
     const shade = h('div', { class: 'dp-shade', hidden: true });
     const resizeHandles = ['e', 'w', 's', 'se', 'sw'].map((dir) => h('div', { class: `dp-rz dp-rz-${dir}`, 'data-dir': dir }));
-    const panel = h('div', { class: 'dp' }, resizer, toolbar, stageWrap, statusbar, ...resizeHandles, toast, shade);
+    const panel = h('div', { class: 'dp' }, resizer, titlebar, toolbar, stageWrap, statusbar, ...resizeHandles, toast, shade);
+    panel.dataset.theme = prefs.theme;
     root.appendChild(panel);
     placeHost();
 
     // Keys typed in the panel shouldn't trigger the page's keyboard shortcuts.
+    // Shortcuts while the panel has focus (outside text fields): + / − zoom, 0 = Fit.
     for (const type of ['keydown', 'keyup', 'keypress']) {
       root.addEventListener(type, (e) => {
         const t = e.target;
         const field = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT');
-        if (type === 'keydown' && e.key === 'Escape' && !field) onRequestClose();
+        if (type === 'keydown' && !field && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (e.key === 'Escape') onRequestClose();
+          else if (e.key === '+' || e.key === '=') stepZoom(1);
+          else if (e.key === '-' || e.key === '_') stepZoom(-1);
+          else if (e.key === '0') P.save({ zoom: 'fit' });
+        }
         e.stopPropagation();
       });
     }
 
     // ------------------------------------------------------------------ toast + messages
     let toastTimer = 0;
-    function showToast(text, ms) {
-      toast.textContent = text;
+    function showToast(text, ms, kind) {
+      toastText.textContent = text;
+      toastIcon.replaceChildren(icon(kind === 'ok' ? 'check' : 'info', 15));
+      toast.classList.toggle('dp-ok', kind === 'ok');
       toast.classList.add('dp-show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => toast.classList.remove('dp-show'), ms || 2400);
@@ -233,6 +280,15 @@
       onLocation(href) {
         if (root.activeElement !== address) address.value = href;
         address.title = href;
+        const secure = /^https:/i.test(href);
+        addressIcon.replaceChildren(icon(secure ? 'lock' : 'globe', 13));
+        addressField.classList.toggle('dp-secure', secure);
+        let hostLabel = '';
+        try {
+          const u = new URL(href);
+          hostLabel = u.host || (u.protocol === 'file:' ? 'local file' : '');
+        } catch (e) {}
+        titleHost.textContent = hostLabel;
         btnBack.disabled = !preview.canBack();
         btnFwd.disabled = !preview.canForward();
         persistUrl(href);
@@ -273,19 +329,41 @@
     }
 
     // ------------------------------------------------------------------ layout
+    const NO_FRAME = { pad: [0, 0, 0, 0], outer: 10, screen: 10 };
     function layout() {
+      if (bezel.classList.contains('dp-capturing')) return; // screenshot in progress
+      const g = prefs.showFrame ? devices.frameGeometry(vp.frame, vp.landscape) : NO_FRAME;
+      const [pt, pr, pb, pl] = g.pad;
+      const fw = vp.W + pl + pr; // device footprint incl. bezel, unscaled
+      const fh = vp.H + pt + pb;
       const availW = stage.clientWidth - STAGE_PAD * 2;
       const availH = stage.clientHeight - STAGE_PAD * 2;
-      if (prefs.zoom === 'fit') scale = clamp(Math.min(1, availW / vp.W, availH / vp.H), 0.1, 1);
+      if (prefs.zoom === 'fit') scale = clamp(Math.min(1, availW / fw, availH / fh), 0.1, 1);
       else scale = prefs.zoom;
       // The sizer reserves the scaled footprint; the viewport itself is always exactly W×H CSS px
-      // (locked with min/max in CSS) and only scaled visually with a transform.
-      sizer.style.width = `${Math.round(vp.W * scale)}px`;
-      sizer.style.height = `${Math.round(vp.H * scale)}px`;
-      device.style.setProperty('--dp-vw', `${vp.W}px`);
-      device.style.setProperty('--dp-vh', `${vp.H}px`);
-      device.style.transform = `scale(${scale})`;
+      // (locked with min/max in CSS) and only scaled visually with a transform on the bezel.
+      sizer.style.width = `${Math.round(fw * scale)}px`;
+      sizer.style.height = `${Math.round(fh * scale)}px`;
+      const bs = bezel.style;
+      bs.setProperty('--dp-vw', `${vp.W}px`);
+      bs.setProperty('--dp-vh', `${vp.H}px`);
+      bs.setProperty('--dp-pt', `${pt}px`);
+      bs.setProperty('--dp-pr', `${pr}px`);
+      bs.setProperty('--dp-pb', `${pb}px`);
+      bs.setProperty('--dp-pl', `${pl}px`);
+      bs.setProperty('--dp-or', `${g.outer}px`);
+      bs.setProperty('--dp-sr', `${g.screen}px`);
+      bs.transform = `scale(${scale})`;
+      bezel.className = `dp-bezel dp-f-${vp.frame}${vp.landscape ? ' dp-land' : ''}${prefs.showFrame ? ' dp-framed' : ''}`;
       renderMeta();
+    }
+
+    // Zoom in/out through a fixed ladder of steps, starting from the current (maybe Fit) scale.
+    const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+    function stepZoom(dir) {
+      const cur = scale;
+      const next = dir > 0 ? ZOOM_STEPS.find((z) => z > cur + 0.005) : [...ZOOM_STEPS].reverse().find((z) => z < cur - 0.005);
+      if (next != null) P.save({ zoom: next });
     }
 
     // Status bar + debug readout. "actual" comes from inside the preview frame.
@@ -293,14 +371,20 @@
     function renderMeta() {
       const pct = Math.round(scale * 100);
       const mismatch = !!actual && (actual.w !== vp.W || actual.h !== vp.H);
-      meta.textContent =
-        `${vp.W} × ${vp.H} · ${vp.dpr}x${pct !== 100 ? ` · ${pct}%` : ''}${preview.engine === 'compat' ? ' · compat' : ''}` +
-        (mismatch ? ` · actual ${actual.w} × ${actual.h}` : '');
+      meta.textContent = '';
+      meta.append(
+        h('b', { text: `${vp.W} × ${vp.H}` }),
+        h('span', { class: 'dp-meta-dim', text: ` · ${vp.dpr}x · ${pct}%` }),
+        mismatch ? h('span', { class: 'dp-meta-warn', text: ` · actual ${actual.w} × ${actual.h}` }) : ''
+      );
       meta.classList.toggle('dp-warn', mismatch);
+      engineBadge.hidden = preview.engine !== 'compat';
       meta.title =
         `${vp.device.id === 'custom' ? 'Custom size' : vp.device.name} – viewport ${vp.W}×${vp.H} CSS px, pixel ratio ${vp.dpr}, shown at ${pct}%.` +
         (mismatch ? ` The page reports ${actual.w}×${actual.h}.` : '') +
         ' Click for the viewport readout.';
+      btnZoomOut.disabled = !ZOOM_STEPS.some((z) => z < scale - 0.005);
+      btnZoomIn.disabled = !ZOOM_STEPS.some((z) => z > scale + 0.005);
       hud.hidden = !prefs.debugHud;
       if (!prefs.debugHud) return;
       const rect = preview.element ? preview.element.getBoundingClientRect() : null;
@@ -317,23 +401,41 @@
     }
     const layoutSoon = rafThrottle(layout);
 
+    const setToggle = (btn, on, label) => {
+      btn.setAttribute('aria-pressed', String(on));
+      btn.title = `${label}: ${on ? 'on' : 'off'}`;
+    };
     function syncControls() {
+      panel.dataset.theme = prefs.theme;
       deviceSelect.value = prefs.deviceId;
+      deviceGlyph.replaceChildren(icon(vp.frame === 'tablet' ? 'tablet' : 'phone', 16));
+      deviceField.title = `${vp.device.id === 'custom' ? 'Custom size' : vp.device.name} · ${vp.os === 'android' ? 'Android' : vp.os === 'ipados' ? 'iPadOS' : 'iOS'} · ${vp.dpr}x`;
       if (root.activeElement !== inW) inW.value = String(vp.W);
       if (root.activeElement !== inH) inH.value = String(vp.H);
       btnRotate.setAttribute('aria-pressed', String(prefs.landscape));
-      btnFollow.setAttribute('aria-pressed', String(prefs.followPage));
-      btnFollow.title = prefs.followPage ? 'Follow desktop page: on' : 'Follow desktop page: off';
-      btnSync.setAttribute('aria-pressed', String(prefs.syncScroll));
-      btnSync.title = prefs.syncScroll ? `Sync scroll: on${prefs.syncScrollTwoWay ? ' (two-way)' : ''}` : 'Sync scroll: off';
+      btnRotate.title = prefs.landscape ? 'Rotate to portrait' : 'Rotate to landscape';
+      setToggle(btnFollow, prefs.followPage, 'Follow desktop page');
+      setToggle(btnSync, prefs.syncScroll, prefs.syncScrollTwoWay ? 'Sync scroll (two-way)' : 'Sync scroll');
+      setToggle(btnFrame, prefs.showFrame, 'Device frame');
       const preset = P.ZOOM_PRESETS.find((z) => String(z) === String(prefs.zoom));
-      const customZoom = preset === undefined;
-      zoomSelect.value = customZoom ? 'custom' : String(prefs.zoom);
-      zoomInput.hidden = !customZoom && zoomSelect.value !== 'custom';
-      if (root.activeElement !== zoomInput && prefs.zoom !== 'fit') zoomInput.value = String(Math.round(prefs.zoom * 100));
+      zoomCurrent.hidden = preset !== undefined;
+      zoomCurrent.textContent = preset === undefined ? `${Math.round(prefs.zoom * 100)}%` : '';
+      if (root.activeElement !== zoomInput) {
+        zoomSelect.value = preset === undefined ? 'current' : String(prefs.zoom);
+        zoomInput.hidden = true;
+        zoomSelect.hidden = false;
+      }
       const floating = isFloating();
       panel.classList.toggle('dp-floating', floating);
       panel.classList.toggle('dp-minimized', floating && minimized);
+      panel.classList.toggle('dp-maximized', floating && maximized);
+      const winHome = floating ? titlebar : row1;
+      if (winControls.parentNode !== winHome) {
+        // Moving a focused button blurs it; keep keyboard focus inside the panel.
+        const focused = winControls.contains(root.activeElement) ? root.activeElement : null;
+        winHome.appendChild(winControls);
+        if (focused) focused.focus();
+      }
       btnMode.replaceChildren(icon(floating ? 'dock' : 'float'));
       btnMode.title = floating ? 'Dock to the right (side-by-side)' : 'Pop out as floating window';
       btnMode.setAttribute('aria-label', btnMode.title);
@@ -404,7 +506,10 @@
     }
 
     function commitRect() {
-      if (!liveRect) return;
+      if (!liveRect) {
+        placeHost(); // nothing moved; make sure the host matches the current state
+        return;
+      }
       const r = liveRect;
       liveRect = null;
       prefs = Object.assign({}, prefs, { floatX: r.x, floatY: r.y, floatW: r.w, floatH: r.h });
@@ -427,24 +532,28 @@
       placeHost();
     }
 
-    // Move: drag any empty part of the toolbar.
-    toolbar.addEventListener('pointerdown', (e) => {
-      if (!isFloating() || e.button !== 0 || e.target.closest('button, select, input')) return;
+    // Move: drag the title bar or any empty part of the toolbar.
+    function startMove(e) {
+      if (!isFloating() || e.button !== 0 || e.target.closest('button, select, input, label')) return;
       e.preventDefault();
       const sx = e.clientX;
       const sy = e.clientY;
       let start = floatRect();
-      if (maximized) {
-        // Pull the window out of the maximized state under the pointer.
-        maximized = false;
-        syncControls();
-        const r = floatRect();
-        start = { x: clamp(e.clientX - r.w / 2, 0, Math.max(0, window.innerWidth - r.w)), y: 0, w: r.w, h: r.h };
-      }
+      // A maximized window is only pulled out once the pointer really moves, so a click or a
+      // double-click (restore) on the title bar leaves it alone.
+      let pulled = !maximized;
       pointerOp(
         e,
-        'move',
+        'grabbing',
         (ev) => {
+          if (!pulled) {
+            if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
+            pulled = true;
+            maximized = false;
+            syncControls();
+            const r = floatRect();
+            start = { x: clamp(sx - r.w / 2, 0, Math.max(0, window.innerWidth - r.w)), y: 0, w: r.w, h: r.h };
+          }
           const hh = minimized ? minimizedHeight() : start.h;
           liveRect = {
             x: Math.round(clamp(start.x + ev.clientX - sx, 0, Math.max(0, window.innerWidth - start.w))),
@@ -456,10 +565,14 @@
         },
         commitRect
       );
-    });
-    toolbar.addEventListener('dblclick', (e) => {
-      if (isFloating() && !e.target.closest('button, select, input')) setMaximized(!maximized);
-    });
+    }
+    const toggleMaxOnDblClick = (e) => {
+      if (isFloating() && !e.target.closest('button, select, input, label')) setMaximized(!maximized);
+    };
+    for (const el of [titlebar, toolbar]) {
+      el.addEventListener('pointerdown', startMove);
+      el.addEventListener('dblclick', toggleMaxOnDblClick);
+    }
 
     // Resize: side edges, bottom edge and bottom corners.
     for (const handle of resizeHandles) {
@@ -563,14 +676,15 @@
     }
     zoomSelect.addEventListener('change', () => {
       const v = zoomSelect.value;
+      if (v === 'current') return;
       if (v === 'custom') {
+        zoomSelect.hidden = true;
         zoomInput.hidden = false;
         zoomInput.value = String(Math.round(scale * 100));
         zoomInput.focus();
         zoomInput.select();
         return;
       }
-      zoomInput.hidden = true;
       P.save({ zoom: v === 'fit' ? 'fit' : Number(v) });
     });
     zoomInput.addEventListener('change', () => {
@@ -583,7 +697,14 @@
     });
     zoomInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') zoomInput.blur();
+      else if (e.key === 'Escape') {
+        zoomInput.value = '';
+        zoomInput.blur();
+      }
     });
+    // Leaving the field without a valid value: show the zoom that is really in use again
+    // (otherwise the menu could stay on "Custom…" while a preset is active).
+    zoomInput.addEventListener('blur', () => setTimeout(syncControls, 0));
 
     address.addEventListener('focus', () => address.select());
     address.addEventListener('keydown', (e) => {
@@ -618,21 +739,22 @@
           pageUrl: preview.url || location.href,
           downloadRoot: root,
           enterCapture() {
+            // Screen only: the bezel collapses to the bare viewport while the tab is captured.
             const s = Math.min(1, (window.innerWidth - 16) / vp.W, (window.innerHeight - 16) / vp.H);
             shade.hidden = false;
             panel.classList.remove('dp-minimized'); // the viewport must be rendered to be captured
-            device.classList.add('dp-capturing');
-            device.style.transform = `scale(${s})`;
+            bezel.classList.add('dp-capturing');
+            bezel.style.transform = `scale(${s})`;
             return device;
           },
           exitCapture() {
             shade.hidden = true;
-            device.classList.remove('dp-capturing');
+            bezel.classList.remove('dp-capturing');
             panel.classList.toggle('dp-minimized', isFloating() && minimized);
             layout();
           }
         });
-        showToast(`Saved ${res.name}`);
+        showToast(`Saved ${res.name}`, 2800, 'ok');
       } catch (e) {
         handleSendError(e, 'Screenshot failed');
       } finally {
@@ -763,6 +885,11 @@
       },
       get host() {
         return host;
+      },
+      // For the automated tests only. Lives in the extension's isolated world, so page
+      // scripts still can't reach the closed shadow root.
+      get _testRoot() {
+        return root;
       }
     };
   }
