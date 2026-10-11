@@ -33,9 +33,12 @@
     floatW: null,
     floatH: null,
     openFromPopup: true, // clicking the toolbar icon opens the preview right away
-    debugHud: false // viewport readout (configured vs. actual size) over the preview
+    debugHud: false, // viewport readout (configured vs. actual size) over the preview
+    showFrame: true, // draw a device bezel around the viewport (visual only, never changes its size)
+    theme: 'dark' // 'dark' | 'light' | 'system' – panel and popup colors
   });
-  const ZOOM_PRESETS = Object.freeze(['fit', 0.5, 0.75, 1, 1.25]);
+  const THEMES = Object.freeze(['dark', 'light', 'system']);
+  const ZOOM_PRESETS = Object.freeze(['fit', 0.5, 0.75, 1, 1.25, 1.5]);
 
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
   const num = (v, d) => {
@@ -63,7 +66,9 @@
       floatW: optInt(p.floatW, LIMITS.floatMinW, 20000),
       floatH: optInt(p.floatH, LIMITS.floatMinH, 20000),
       openFromPopup: !!p.openFromPopup,
-      debugHud: !!p.debugHud
+      debugHud: !!p.debugHud,
+      showFrame: !!p.showFrame,
+      theme: THEMES.includes(p.theme) ? p.theme : DEFAULTS.theme
     };
   }
 
@@ -121,5 +126,5 @@
     return Math.round(clamp(num(w, DEFAULTS.panelWidth), LIMITS.panelMin, max));
   }
 
-  NS.prefs = { KEY, LIMITS, DEFAULTS, ZOOM_PRESETS, normalize, load, save, onChange, clampPanelWidth };
+  NS.prefs = { KEY, LIMITS, DEFAULTS, ZOOM_PRESETS, THEMES, normalize, load, save, onChange, clampPanelWidth };
 })(globalThis);

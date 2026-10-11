@@ -13,23 +13,26 @@
   };
 
   // CSS viewport sizes (portrait). dpr = device pixel ratio reported to page scripts.
+  // frame = the look of the optional device bezel drawn around the viewport (never inside it):
+  //   phone  – modern edge-to-edge phone   home – phone with a home button (iPhone SE)
+  //   tablet – tablet
   const DEVICES = [
-    { id: 'iphone15pro', name: 'iPhone 15 Pro', group: 'iPhone', w: 393, h: 852, dpr: 3, os: 'ios' },
-    { id: 'iphone15promax', name: 'iPhone 15 Pro Max', group: 'iPhone', w: 430, h: 932, dpr: 3, os: 'ios' },
-    { id: 'iphone14', name: 'iPhone 14', group: 'iPhone', w: 390, h: 844, dpr: 3, os: 'ios' },
-    { id: 'iphone14pro', name: 'iPhone 14 Pro', group: 'iPhone', w: 393, h: 852, dpr: 3, os: 'ios' },
-    { id: 'iphone13mini', name: 'iPhone 13 mini', group: 'iPhone', w: 375, h: 812, dpr: 3, os: 'ios' },
-    { id: 'iphonese', name: 'iPhone SE', group: 'iPhone', w: 375, h: 667, dpr: 2, os: 'ios' },
-    { id: 'galaxys24', name: 'Samsung Galaxy S24', group: 'Android', w: 360, h: 780, dpr: 3, os: 'android' },
-    { id: 'galaxys23ultra', name: 'Samsung Galaxy S23 Ultra', group: 'Android', w: 384, h: 824, dpr: 3.75, os: 'android' },
-    { id: 'galaxys20', name: 'Samsung Galaxy S20', group: 'Android', w: 360, h: 800, dpr: 3, os: 'android' },
-    { id: 'galaxyfold', name: 'Galaxy Z Fold (folded)', group: 'Android', w: 344, h: 882, dpr: 3, os: 'android' },
-    { id: 'pixel8', name: 'Google Pixel 8', group: 'Android', w: 412, h: 915, dpr: 2.625, os: 'android' },
-    { id: 'pixel7', name: 'Google Pixel 7', group: 'Android', w: 412, h: 915, dpr: 2.625, os: 'android' },
-    { id: 'ipadmini', name: 'iPad Mini', group: 'Tablet', w: 768, h: 1024, dpr: 2, os: 'ipados' },
-    { id: 'ipadair', name: 'iPad Air', group: 'Tablet', w: 820, h: 1180, dpr: 2, os: 'ipados' },
-    { id: 'ipadpro', name: 'iPad Pro 12.9"', group: 'Tablet', w: 1024, h: 1366, dpr: 2, os: 'ipados' },
-    { id: 'custom', name: 'Custom', group: 'Custom', w: 390, h: 844, dpr: 2, os: 'android' }
+    { id: 'iphone15pro', name: 'iPhone 15 Pro', group: 'iPhone', w: 393, h: 852, dpr: 3, os: 'ios', frame: 'phone' },
+    { id: 'iphone15promax', name: 'iPhone 15 Pro Max', group: 'iPhone', w: 430, h: 932, dpr: 3, os: 'ios', frame: 'phone' },
+    { id: 'iphone14', name: 'iPhone 14', group: 'iPhone', w: 390, h: 844, dpr: 3, os: 'ios', frame: 'phone' },
+    { id: 'iphone14pro', name: 'iPhone 14 Pro', group: 'iPhone', w: 393, h: 852, dpr: 3, os: 'ios', frame: 'phone' },
+    { id: 'iphone13mini', name: 'iPhone 13 mini', group: 'iPhone', w: 375, h: 812, dpr: 3, os: 'ios', frame: 'phone' },
+    { id: 'iphonese', name: 'iPhone SE', group: 'iPhone', w: 375, h: 667, dpr: 2, os: 'ios', frame: 'home' },
+    { id: 'galaxys24', name: 'Samsung Galaxy S24', group: 'Android', w: 360, h: 780, dpr: 3, os: 'android', frame: 'phone' },
+    { id: 'galaxys23ultra', name: 'Samsung Galaxy S23 Ultra', group: 'Android', w: 384, h: 824, dpr: 3.75, os: 'android', frame: 'phone' },
+    { id: 'galaxys20', name: 'Samsung Galaxy S20', group: 'Android', w: 360, h: 800, dpr: 3, os: 'android', frame: 'phone' },
+    { id: 'galaxyfold', name: 'Galaxy Z Fold (folded)', group: 'Android', w: 344, h: 882, dpr: 3, os: 'android', frame: 'phone' },
+    { id: 'pixel8', name: 'Google Pixel 8', group: 'Android', w: 412, h: 915, dpr: 2.625, os: 'android', frame: 'phone' },
+    { id: 'pixel7', name: 'Google Pixel 7', group: 'Android', w: 412, h: 915, dpr: 2.625, os: 'android', frame: 'phone' },
+    { id: 'ipadmini', name: 'iPad Mini', group: 'Tablet', w: 768, h: 1024, dpr: 2, os: 'ipados', frame: 'tablet' },
+    { id: 'ipadair', name: 'iPad Air', group: 'Tablet', w: 820, h: 1180, dpr: 2, os: 'ipados', frame: 'tablet' },
+    { id: 'ipadpro', name: 'iPad Pro 12.9"', group: 'Tablet', w: 1024, h: 1366, dpr: 2, os: 'ipados', frame: 'tablet' },
+    { id: 'custom', name: 'Custom', group: 'Custom', w: 390, h: 844, dpr: 2, os: 'android', frame: 'phone' }
   ];
   const GROUPS = ['iPhone', 'Android', 'Tablet', 'Custom'];
   const byId = new Map(DEVICES.map((d) => [d.id, d]));
@@ -49,8 +52,25 @@
       h = prefs.customH || device.h;
     }
     const landscape = !!(prefs && prefs.landscape);
+    // A custom size gets a tablet bezel once it's tablet-sized.
+    const frame = device.id === 'custom' && Math.min(w, h) >= 600 ? 'tablet' : device.frame;
     if (landscape) [w, h] = [h, w];
-    return { device, W: w, H: h, dpr: device.dpr, os: device.os, landscape };
+    return { device, W: w, H: h, dpr: device.dpr, os: device.os, landscape, frame };
+  }
+
+  // Bezel geometry in CSS px, drawn around the viewport (padding), never on top of it.
+  // pad = [top, right, bottom, left]; outer/screen = corner radii.
+  const FRAMES = {
+    phone: { pad: [14, 14, 14, 14], outer: 54, screen: 40 },
+    home: { pad: [72, 16, 72, 16], outer: 52, screen: 2 },
+    tablet: { pad: [22, 22, 22, 22], outer: 40, screen: 18 }
+  };
+  function frameGeometry(frame, landscape) {
+    const f = FRAMES[frame] || FRAMES.phone;
+    const [t, r, b, l] = f.pad;
+    // Rotating the device by 90° moves the top bezel to the left.
+    const pad = landscape ? [r, b, l, t] : [t, r, b, l];
+    return { pad, outer: f.outer, screen: f.screen };
   }
 
   // Fills a <select> with grouped device options (popup + panel share this).
@@ -70,5 +90,5 @@
     }
   }
 
-  NS.devices = { UA, DEVICES, GROUPS, DEFAULT_ID, get, has: (id) => byId.has(id), resolve, fillSelect };
+  NS.devices = { UA, DEVICES, GROUPS, DEFAULT_ID, get, has: (id) => byId.has(id), resolve, fillSelect, frameGeometry };
 })(globalThis);

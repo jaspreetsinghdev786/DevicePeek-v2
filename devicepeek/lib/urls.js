@@ -3,8 +3,7 @@
   'use strict';
   const NS = (g.DevicePeek = g.DevicePeek || {});
 
-  const GENERIC =
-    "DevicePeek can't run on this page. Chrome blocks extensions on its own pages (chrome://, Settings, New Tab) and the Chrome Web Store. Open a normal website first.";
+  const GENERIC = "Chrome doesn't let extensions run on its own pages (Settings, New Tab, Web Store). Open a website to use DevicePeek.";
 
   const BY_PROTOCOL = {
     'chrome:': "Chrome's own pages (chrome://…) can't be previewed. Open a normal website first.",
