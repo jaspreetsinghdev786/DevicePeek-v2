@@ -115,11 +115,13 @@ async function syncRules(s) {
 async function setBadge(tabId, state) {
   try {
     if (state === 'open') {
-      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#1a73e8' });
+      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#16a34a' }); // brand green
+      if (chrome.action.setBadgeTextColor) await chrome.action.setBadgeTextColor({ tabId, color: '#ffffff' });
       await chrome.action.setBadgeText({ tabId, text: 'ON' });
       await chrome.action.setTitle({ tabId, title: 'DevicePeek (open)' });
     } else if (state === 'error') {
-      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#d93025' });
+      await chrome.action.setBadgeBackgroundColor({ tabId, color: '#dc2626' });
+      if (chrome.action.setBadgeTextColor) await chrome.action.setBadgeTextColor({ tabId, color: '#ffffff' });
       await chrome.action.setBadgeText({ tabId, text: '!' });
     } else {
       await chrome.action.setBadgeText({ tabId, text: '' });
@@ -210,7 +212,9 @@ async function openTab(tab) {
   try {
     await ensureContent(tab.id);
     await injectPageHooks(tab.id);
-    await chrome.tabs.sendMessage(tab.id, { type: 'dp:open' }, { frameId: 0 });
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'dp:open' }, { frameId: 0 });
+    // The content script answers { ok: false } when the panel itself couldn't be built.
+    if (!res || res.ok === false) throw new Error((res && res.message) || 'The page did not respond.');
   } catch (e) {
     await mutate((s) => {
       delete s.tabs[tab.id];
@@ -283,6 +287,14 @@ async function handle(msg, sender) {
       const s = await readState();
       const t = s.tabs[senderTabId];
       if (!t) return { open: false };
+      // Settings may have switched OS while this tab had no live panel (closed tab group,
+      // discarded tab, bfcache). Bring the User-Agent rule in line before the preview loads.
+      const os = DP.devices.resolve(await DP.prefs.load()).os;
+      if (t.os !== os) {
+        await mutate((st) => {
+          if (st.tabs[senderTabId]) st.tabs[senderTabId].os = os;
+        });
+      }
       await injectPageHooks(senderTabId);
       await setBadge(senderTabId, 'open');
       return { open: true, previewUrl: t.previewUrl || null };

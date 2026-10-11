@@ -1,4 +1,4 @@
-# DevicePeek 2.2 – Responsive Preview
+# DevicePeek 3.0 – Responsive Preview
 
 A phone or tablet preview docked to the right of the page you're on. The desktop site stays
 fully usable on the left, and the preview follows your navigation and scrolling.
@@ -32,9 +32,10 @@ and sync settings are migrated.
 - **Docked** (default): the panel sits on the right and the page reflows into the remaining width.
   Best for side-by-side checking.
 - **Floating**: the preview becomes a movable window over the page.
-  - Drag any empty part of the toolbar to move it. It always stays inside the browser window.
+  - Drag the title bar (or an empty part of the toolbar) to move it. It always stays inside the
+    browser window.
   - Resize it from the left, right or bottom edge, or from a bottom corner.
-  - Minimize collapses it to the toolbar; maximize fills the window. Double-click the toolbar
+  - Minimize collapses it to the title bar; maximize fills the window. Double-click the title bar
     to maximize or restore.
   - Position and size are remembered.
 
@@ -55,14 +56,16 @@ works in both.
 | Back / Forward / Reload | Navigation for the preview only |
 | Follow (link icon) | Preview opens the page the desktop navigates to, including SPA routes |
 | Sync (arrows icon) | Desktop scrolling moves the preview to the same relative position. Turn on **Two-way** in the popup to let preview scrolling move the desktop as well |
-| Zoom | Fit, 50 %, 75 %, 100 %, 125 % or Custom. Only changes how big the preview is drawn, never the simulated viewport |
-| Camera | Saves a PNG of the preview viewport only, e.g. `devicepeek-iphone-15-pro-example-com.png` |
+| Frame (phone icon) | Device bezel around the preview (camera, side buttons, home button on iPhone SE). Drawn outside the viewport |
+| − Zoom + | Fit, 50–150 % or Custom…; − / + step from 25 % to 300 %. Keys `+` `−` `0` while the panel has focus. Only changes how big the preview is drawn, never the simulated viewport |
+| Camera (green) | Saves a PNG of the preview screen only (never the bezel), e.g. `devicepeek-iphone-15-pro-example-com.png` |
 | Size readout (bottom right) | Click it to show the viewport readout: configured size, real `innerWidth` / `innerHeight` inside the page, scale. Turns yellow if the page ever reports a different size |
 | Address bar (bottom) | Shows the preview URL. Type a URL or path and press Enter to open it in the preview |
 
 ### Popup
 
-Open / close, device, rotate, **Layout** (Docked / Floating), Follow current page, Sync scroll,
+Open / close, device (with a silhouette, size, pixel ratio and OS), Portrait/Landscape, Frame,
+**Layout** (Docked / Floating), **Theme** (Light / Dark / Auto), Follow current page, Sync scroll,
 Two-way.
 
 ## Viewport accuracy

@@ -44,6 +44,7 @@
       removeStale();
       const initialUrl = prefs.followPage || !previewUrl ? location.href : previewUrl;
       panel = NS.createPanel({ prefs, initialUrl, cssText: css, onRequestClose: requestClose });
+      NS.activePanel = panel;
       panel.mount();
       navWatch = NS.createNavWatch((href) => panel && panel.onDesktopNavigate(href));
       orphanTimer = setInterval(() => {
@@ -66,6 +67,7 @@
     if (!panel) return;
     const p = panel;
     panel = null;
+    NS.activePanel = null;
     clearInterval(orphanTimer);
     if (navWatch) navWatch.stop();
     navWatch = null;

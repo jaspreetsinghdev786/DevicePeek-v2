@@ -6,15 +6,39 @@
   const P = NS.prefs;
   const $ = (id) => document.getElementById(id);
 
+  // Paint with the last theme right away (settings load asynchronously).
+  const THEME_CACHE = 'devicepeek:theme';
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try {
+      localStorage.setItem(THEME_CACHE, t);
+    } catch (e) {}
+  };
+  try {
+    const cached = localStorage.getItem(THEME_CACHE);
+    if (P.THEMES.includes(cached)) document.documentElement.dataset.theme = cached;
+  } catch (e) {}
+
+  // Icons are shared with the panel (content/icons.js).
+  for (const el of document.querySelectorAll('[data-icon]')) el.appendChild(NS.icon(el.dataset.icon, 16));
+
   const els = {
     status: $('status'),
+    statusText: $('statusText'),
     notice: $('notice'),
     noticeText: $('noticeText'),
     toggle: $('toggle'),
+    toggleText: $('toggleText'),
+    toggleKbd: $('toggleKbd'),
     device: $('device'),
+    shape: $('shape'),
+    specs: $('specs'),
     rotate: $('rotate'),
+    rotateText: $('rotateText'),
+    frame: $('frame'),
     modeSide: $('modeSide'),
     modeFloat: $('modeFloat'),
+    themes: [...document.querySelectorAll('[data-theme-value]')],
     follow: $('follow'),
     sync: $('sync'),
     twoway: $('twoway'),
@@ -34,18 +58,40 @@
   }
 
   function renderOpen(supported) {
-    els.status.textContent = !supported ? 'Unavailable' : open ? 'Open' : 'Closed';
+    els.statusText.textContent = !supported ? 'Unavailable' : open ? 'Open' : 'Closed';
     els.status.classList.toggle('on', supported && open);
-    els.toggle.textContent = open ? 'Close DevicePeek' : 'Open DevicePeek';
+    els.status.classList.toggle('off', !supported);
+    els.toggleText.textContent = open ? 'Close preview' : 'Open preview';
     els.toggle.classList.toggle('close', open);
     els.toggle.disabled = !supported || busy;
+    // Nothing to open on this page: the notice explains why, settings stay editable.
+    els.toggle.hidden = !supported;
+  }
+
+  const OS_NAME = { ios: 'iOS', ipados: 'iPadOS', android: 'Android' };
+  function renderDevice(p) {
+    const vp = NS.devices.resolve(p);
+    // Device silhouette, scaled into a 56×72 box (bezel included when the frame is on).
+    const k = Math.min(56 / vp.W, 72 / vp.H);
+    els.shape.style.width = `${Math.max(14, Math.round(vp.W * k))}px`;
+    els.shape.style.height = `${Math.max(14, Math.round(vp.H * k))}px`;
+    els.shape.classList.toggle('bare', !p.showFrame);
+    els.specs.textContent = '';
+    const b = document.createElement('b');
+    b.textContent = `${vp.W} × ${vp.H}`;
+    els.specs.append(b, ` · ${vp.dpr}x · ${OS_NAME[vp.os] || vp.os}`);
+    els.rotateText.textContent = p.landscape ? 'Landscape' : 'Portrait';
   }
 
   function renderPrefs(p) {
+    applyTheme(p.theme);
     els.device.value = p.deviceId;
+    renderDevice(p);
     els.rotate.setAttribute('aria-pressed', String(p.landscape));
+    els.frame.setAttribute('aria-pressed', String(p.showFrame));
     els.modeSide.setAttribute('aria-checked', String(p.mode === 'side'));
     els.modeFloat.setAttribute('aria-checked', String(p.mode === 'floating'));
+    for (const b of els.themes) b.setAttribute('aria-checked', String(b.dataset.themeValue === p.theme));
     els.follow.checked = p.followPage;
     els.sync.checked = p.syncScroll;
     els.twoway.checked = p.syncScrollTwoWay;
@@ -94,8 +140,10 @@
 
   els.device.addEventListener('change', () => P.save({ deviceId: els.device.value }));
   els.rotate.addEventListener('click', () => P.save({ landscape: !prefs.landscape }));
+  els.frame.addEventListener('click', () => P.save({ showFrame: !prefs.showFrame }));
   els.modeSide.addEventListener('click', () => P.save({ mode: 'side' }));
   els.modeFloat.addEventListener('click', () => P.save({ mode: 'floating' }));
+  for (const b of els.themes) b.addEventListener('click', () => P.save({ theme: b.dataset.themeValue }));
   els.follow.addEventListener('change', () => P.save({ followPage: els.follow.checked }));
   els.sync.addEventListener('change', () => P.save({ syncScroll: els.sync.checked }));
   els.twoway.addEventListener('change', () => P.save({ syncScrollTwoWay: els.twoway.checked }));
@@ -106,7 +154,10 @@
   try {
     const cmds = await chrome.commands.getAll();
     const cmd = cmds.find((c) => c.name === 'toggle-devicepeek');
-    els.shortcut.textContent = (cmd && cmd.shortcut) || 'Not set';
+    const key = (cmd && cmd.shortcut) || '';
+    els.shortcut.textContent = key || 'Not set';
+    els.toggleKbd.textContent = key;
+    els.toggleKbd.hidden = !key;
   } catch (e) {}
   els.shortcutLink.addEventListener('click', (e) => {
     e.preventDefault();
@@ -122,7 +173,7 @@
   }
   const status = await call({ type: 'dp:status', tabId: tab.id });
   if (!status || status.ok === false || !status.supported) {
-    showNotice((status && status.message) || NS.urls?.GENERIC || "DevicePeek can't run on this page.");
+    showNotice((status && status.message) || "DevicePeek can't run on this page.");
     renderOpen(false);
     return;
   }
