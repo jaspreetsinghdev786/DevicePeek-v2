@@ -42,10 +42,10 @@ popup. Switching doesn't reload the preview.
 Double-click the edge to reset it.
 
 **Floating:**
-- **Move:** drag an empty part of the toolbar.
+- **Move:** drag the title bar (or an empty part of the toolbar).
 - **Resize:** drag the left, right or bottom edge, or a bottom corner.
-- **Minimize** (—) shrinks it to just the toolbar. **Maximize** (□) fills the window. Double-click the
-  toolbar to maximize or restore.
+- **Minimize** (—) shrinks it to just the title bar. **Maximize** (□) fills the window. Double-click the
+  title bar to maximize or restore.
 - Position and size are remembered.
 
 ## 4. Toolbar controls
@@ -54,12 +54,13 @@ Double-click the edge to reset it.
 | --- | --- |
 | Device menu | iPhone 15 Pro / Pro Max / 14 / 14 Pro / 13 mini / SE, Galaxy S24 / S23 Ultra / S20 / Z Fold, Pixel 8 / 7, iPad Mini / Air / Pro, Custom |
 | Width × Height | Type a size to make a custom device |
-| Rotate | Portrait ↔ landscape (393 × 852 → 852 × 393) |
+| Rotate (inside the size box) | Portrait ↔ landscape (393 × 852 → 852 × 393). Green when landscape |
 | ◀ ▶ ⟳ | Back, forward and reload, for the preview only |
 | Link icon (Follow) | When on, the preview opens the same page you open on the desktop |
 | Arrows icon (Sync) | When on, scrolling the desktop scrolls the preview to the same spot. Turn on **Two-way** in the popup to make it work the other way too |
-| Zoom | Fit, 50%, 75%, 100%, 125% or Custom. Changes only how big the phone looks, never the size the website sees |
-| Camera | Saves a PNG of just the phone screen to Downloads, e.g. `devicepeek-iphone-15-pro-example-com.png` |
+| Phone icon (Frame) | Shows or hides the device bezel around the preview. Only looks; the website's size never changes |
+| − Zoom + | Fit, 50–150% or Custom…, and − / + to step from 25% to 300%. Changes only how big the phone looks, never the size the website sees. Keys while the panel has focus: `+`, `−`, `0` (Fit) |
+| Green camera | Saves a PNG of just the phone screen (no bezel) to Downloads, e.g. `devicepeek-iphone-15-pro-example-com.png` |
 | Address bar (bottom left) | Shows the preview's URL. Type a URL or `/path` and press Enter to open it in the preview |
 | Size text (bottom right) | Click to show the viewport readout (see section 5) |
 
@@ -87,8 +88,9 @@ If it ever turns yellow and says **MISMATCH**, take a screenshot and report it.
 ## 6. The popup
 
 Click the DevicePeek icon to open it. It opens the preview right away (you can turn that off with
-"Open preview when I click the icon"). It also has the device menu, Rotate, Layout
-(Docked / Floating), Follow current page, Sync scroll and Two-way.
+"Open preview when I click the icon"). It also has the device menu with a little silhouette of the
+screen, Portrait/Landscape, Frame, Layout (Docked / Floating), **Theme** (Light / Dark / Auto),
+Follow current page, Sync scroll and Two-way.
 
 ## Troubleshooting
 

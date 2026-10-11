@@ -3,7 +3,7 @@
 Project path (load this folder in Chrome):
 C:\Users\Jaspreet Singh\Downloads\DevicePeek\devicepeek
 
-Current version: 2.2.0 (Manifest V3)
+Current version: 3.0.0 (Manifest V3)
 
 ---
 
@@ -44,24 +44,30 @@ Zoom/Fit only scale it visually with `transform`.
 5. **Sync Scroll**: proportional scroll position, optional two-way, no feedback loops.
 6. **Rotate**: swaps W×H; orientation is remembered.
 7. **Zoom**: Fit / 50 / 75 / 100 / 125 / Custom. Only visual scale; the viewport stays the same.
-8. **Toolbar**: device, W×H, rotate, reload, back, forward, zoom, screenshot, sync, follow, close.
+8. **Toolbar**: device, W×H, rotate, back, forward, reload, follow, sync, device frame, zoom (− menu +),
+   screenshot, pop out/dock, close. Floating mode adds a title bar with minimize/maximize.
 9. **Screenshot**: preview viewport only, saved as `devicepeek-<device>-<site>.png`.
 10. **Persistence** (chrome.storage): device, size, orientation, zoom, width, toggles, per-tab
     open state.
 11. **Survives navigation**: the panel restores itself after reload or navigation.
-12. **Popup**: opens the preview in one click and has controls for device, Layout
-    (Docked / Floating), follow, sync, two-way.
-13. **Shortcut**: Alt+Shift+M (`commands` in manifest).
+12. **Popup**: opens the preview in one click and has controls for device (with a silhouette),
+    rotate, frame, Layout (Docked / Floating), Theme (Light / Dark / Auto), follow, sync, two-way.
+13. **Shortcut**: Alt+Shift+M (`commands` in manifest). Inside the panel: `+` / `−` zoom, `0` Fit, Esc closes.
 14. **Floating mode** (in addition to Docked): the preview becomes a movable window over the page.
     Drag the toolbar to move it, resize from the edges and bottom corners, minimize/maximize
     (double-click the toolbar to maximize), and it stays inside the viewport. Position and size
     are remembered in chrome.storage.local. Switching modes (toolbar button or popup) doesn't
     reload the preview, and every feature works in both modes.
 
-### Design rules
-- Dark neutral DevTools-style toolbar, subtle borders, small radius, SVG icons, compact controls.
-- No gradients, glows, big shadows or decorative animation. Animate only open, close and resize.
-- It must not look AI-generated.
+### Design rules (3.0)
+- Bold but tidy: rounded controls (10 px, groups as pills), 32 px click targets, brand green
+  accent (`#4ade80` dark / `#16a34a` light) matching the icon, SVG icons.
+- Themes: Dark (default), Light, Auto. All colors are tokens with `light-dark()` at the top of
+  `content.css` and `popup.css`; never hard-code a color in a rule.
+- The optional device bezel is padding around the viewport and carries the zoom transform; it
+  must never cover or resize the viewport. Screenshots are the bare screen.
+- Animate only open, close, resize and small state changes. Respect reduced motion.
+- It must not look AI-generated: no glows, no rainbow gradients, no emoji.
 
 ### Architecture rules
 - Modular files: background.js (service worker), content.js (bootstrap), content.css (shadow DOM

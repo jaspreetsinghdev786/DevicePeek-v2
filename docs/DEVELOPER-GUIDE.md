@@ -48,8 +48,11 @@ Your normal Chrome install isn't touched by the tests.
 
 ### Key rules (keep these when changing code)
 - **The viewport is exact.** `.dp-device` and its iframe are locked to `--dp-vw × --dp-vh` with
-  min/max sizes. Zoom and Fit use `transform: scale()` only. Never size them with `%`, `flex: 1`
-  or CSS `zoom`.
+  min/max sizes. Zoom and Fit use `transform: scale()` on `.dp-bezel` only. Never size them with
+  `%`, `flex: 1` or CSS `zoom`. The bezel is padding *around* the viewport.
+- **No containment above fixed elements.** The screenshot moves `.dp-bezel` to `position: fixed`.
+  Don't add `transform`, `filter`, `contain` or `container-type` to its ancestors (`.dp`, stage,
+  sizer); the toolbar is the only size container.
 - **Restore the page exactly.** All page changes go through `dock.js` snapshots: inline styles are
   set through the CSSOM (never blocked by CSP) and removed again, including empty `style=""`
   attributes.
@@ -68,8 +71,13 @@ automatically. Update the device count in `tests/e2e.js` (the "popup lists N dev
 **Change a default** (panel width, default device, sync on/off): edit `DEFAULTS` in `lib/prefs.js`.
 Add any new setting to both `DEFAULTS` and `normalize()`.
 
-**Change the look:** panel styles are in `content.css` (variables at the top of `.dp`), popup styles in
-`popup.css`.
+**Change the look:** panel styles are in `content.css`, popup styles in `popup.css`. Both start with
+color tokens written as `light-dark(light, dark)`; the theme setting only switches `color-scheme`
+(`data-theme` on `.dp` / `<html>`). Change a token once and both themes follow.
+
+**Change the device bezel:** `FRAMES` in `lib/devices.js` (padding and corner radii per frame type;
+`frame` on each device picks one). `panel.js` turns it into CSS variables on `.dp-bezel`; the
+details (camera, home button, side buttons) are `.dp-bz-*` rules in `content.css`.
 
 **Change the shortcut default:** `commands` in `manifest.json`. Existing installs keep their current
 binding; users change it at `chrome://extensions/shortcuts`.
@@ -83,6 +91,11 @@ binding; users change it at `chrome://extensions/shortcuts`.
 | `npm run test:viewport` | 700+ checks that `innerWidth`/`innerHeight` inside the preview equal the device size for every device × orientation × zoom × layout, plus a site that zooms `<html>` |
 
 Test screenshots are written to `tests/output/`.
+
+The panel is a closed shadow root, so tests can't query it from the page. Instead they run a
+script in the extension's isolated world (`chrome.scripting.executeScript` from the service
+worker) and read `DevicePeek.activePanel._testRoot`, find a button by its `aria-label`, and click
+its real screen position. Page scripts can't see that world, so the shadow root stays private.
 
 ## Releasing a new version
 
