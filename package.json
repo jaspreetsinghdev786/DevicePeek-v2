@@ -1,6 +1,6 @@
 {
   "name": "devicepeek",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "private": true,
   "description": "DevicePeek – side-by-side responsive preview Chrome extension (Manifest V3). The extension itself is in ./devicepeek; this package only holds the developer tooling.",
   "scripts": {

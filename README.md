@@ -3,7 +3,7 @@
 A Chrome extension for checking websites on phones and tablets while you work. The desktop site
 stays on the left, and a real mobile viewport sits next to it, docked or as a floating window.
 
-Current version: **2.2.0** (Manifest V3) · see [CHANGELOG.md](CHANGELOG.md)
+Current version: **3.0.0** (Manifest V3) · see [CHANGELOG.md](CHANGELOG.md)
 
 ## Start here
 
