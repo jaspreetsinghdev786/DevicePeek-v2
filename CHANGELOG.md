@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 – Peak Preview (2026-10-20)
+- Extension code in `devicepeek/` replaced with Peak Preview 1.1.0: floating movable mobile
+  preview, side-by-side device workspace (`viewer.html`), exact device mode via `debugger`.
+- Shortcuts: Alt+Shift+P (floating preview), Alt+Shift+M (comparison workspace).
+- The 2.x DevicePeek code remains in git history. `docs/` and `tests/` still describe 2.2.0.
+
 ## 2.2.0 – 2026-10-04
 - **Exact viewport:** the device viewport and its iframe are locked to the exact CSS size
   (min/max widths, no stretching). Zoom and Fit scale visually only.

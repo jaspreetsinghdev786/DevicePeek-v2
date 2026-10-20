@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peak Preview</title>
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <img src="icons/icon32.png" alt="" width="24" height="24">
+      <span>Peak Preview</span>
+    </div>
+
+    <form id="urlForm" class="url-form" autocomplete="off">
+      <label class="sr-only" for="url">Website address</label>
+      <span class="url-icon" id="urlIcon" aria-hidden="true"></span>
+      <input id="url" type="text" inputmode="url" spellcheck="false" placeholder="Enter a website, e.g. reachonpeak.in">
+      <button type="submit" class="go" id="go" title="Preview" aria-label="Preview"></button>
+    </form>
+
+    <nav id="modes" class="modes" aria-label="Device group"></nav>
+
+    <div class="tools">
+      <label class="zoom">
+        <span class="sr-only">Zoom</span>
+        <select id="zoom">
+          <option value="fit">Fit</option>
+          <option value="1">100%</option>
+          <option value="0.75">75%</option>
+          <option value="0.5">50%</option>
+          <option value="0.33">33%</option>
+        </select>
+        <span id="zoomInfo" class="zoom-info" aria-live="polite"></span>
+      </label>
+      <label class="zoom" title="Where the preview opens from other pages">
+        <span class="sr-only">Open previews in</span>
+        <select id="openIn">
+          <option value="same">Open in this tab</option>
+          <option value="new">Open in new tab</option>
+        </select>
+      </label>
+      <span class="divider" aria-hidden="true"></span>
+      <button type="button" class="icon-btn toggle" id="tgFrames" aria-pressed="true" title="Device frames" aria-label="Device frames"></button>
+      <button type="button" class="icon-btn toggle" id="tgScroll" aria-pressed="true" title="Sync scroll: scrolling one device scrolls the others" aria-label="Sync scroll"></button>
+      <button type="button" class="icon-btn toggle" id="tgNav" aria-pressed="false" title="Sync links: a link clicked in one device opens on all" aria-label="Sync links"></button>
+      <span class="divider" aria-hidden="true"></span>
+      <button type="button" id="reloadAll" class="icon-btn" title="Reload all devices" aria-label="Reload all devices"></button>
+      <button type="button" class="icon-btn" id="devicesBtn" title="Choose devices" aria-label="Choose devices" aria-expanded="false" aria-controls="panel"></button>
+    </div>
+  </header>
+
+  <main id="canvas" class="canvas">
+    <section id="empty" class="empty" hidden>
+      <div class="empty-art" aria-hidden="true"></div>
+      <h1>See your site on every screen</h1>
+      <p>Type an address above to preview it on phones, tablets and desktops side by side.</p>
+      <div class="examples" aria-label="Try an example">
+        <button type="button" class="chip" data-url="reachonpeak.in">reachonpeak.in</button>
+        <button type="button" class="chip" data-url="wikipedia.org">wikipedia.org</button>
+        <button type="button" class="chip" data-url="example.com">example.com</button>
+      </div>
+      <p class="tip small">On any page, press <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>M</kbd> or right-click → <em>Preview this page</em>.</p>
+    </section>
+    <div id="grid" class="grid frames"></div>
+    <p id="hint" class="hint" hidden>
+      Blank frame, or logged out? Some sites refuse to load inside previews.
+      Use <span class="hint-icon" aria-hidden="true"></span> <strong>Exact mode</strong> on a device to open it in a real tab.
+    </p>
+  </main>
+
+  <aside id="panel" class="panel" hidden aria-label="Choose devices">
+    <div class="panel-head">
+      <h2>Devices</h2>
+      <button type="button" id="panelClose" class="icon-btn" aria-label="Close"></button>
+    </div>
+    <p class="panel-note">Tick the screens you want. Your picks are saved as <strong>Custom</strong>.</p>
+    <div id="deviceList"></div>
+    <form id="customForm" class="custom-form" autocomplete="off">
+      <h3>Add a custom size</h3>
+      <div class="custom-row">
+        <label>Width<input id="cw" type="number" min="200" max="3840" required placeholder="390"></label>
+        <span class="times" aria-hidden="true">×</span>
+        <label>Height<input id="ch" type="number" min="200" max="2400" required placeholder="844"></label>
+      </div>
+      <label class="custom-name">Name (optional)<input id="cn" type="text" maxlength="40" placeholder="Client's phone"></label>
+      <button type="submit" class="btn primary block">Add size</button>
+    </form>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="devices.js"></script>
+  <script src="viewer.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 A Chrome extension for checking websites on phones and tablets while you work. The desktop site
 stays on the left, and a real mobile viewport sits next to it, docked or as a floating window.
 
-Current version: **2.2.0** (Manifest V3) · see [CHANGELOG.md](CHANGELOG.md)
+Current version: **1.1.0** – Peak Preview (Manifest V3) · see [CHANGELOG.md](CHANGELOG.md)
 
 ## Start here
 
@@ -17,13 +17,10 @@ Current version: **2.2.0** (Manifest V3) · see [CHANGELOG.md](CHANGELOG.md)
 ## Install (one time)
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and choose this folder:
-   ```
-   C:\Users\Jaspreet Singh\Downloads\DevicePeek\devicepeek
-   ```
+2. Click **Load unpacked** and choose the `devicepeek` folder of this repo.
 3. Pin DevicePeek from the puzzle-piece menu.
 
-Then open any website and click the DevicePeek icon, or press **Alt+Shift+M**.
+Then open any website and click the icon (**Alt+Shift+P**, floating preview) or press **Alt+Shift+M** (comparison workspace).
 
 > Chrome loads the extension from that folder. Don't move, rename or delete it. If you do,
 > load it again from the new place.
@@ -32,23 +29,18 @@ Then open any website and click the DevicePeek icon, or press **Alt+Shift+M**.
 
 ```
 DevicePeek/
-├── devicepeek/          The extension. This is the folder Chrome loads.
+├── devicepeek/          The extension (Peak Preview). Chrome loads this folder.
 │   ├── manifest.json
 │   ├── background.js    Service worker
-│   ├── content.js       Page bootstrap
-│   ├── content.css      Panel styles
-│   ├── content/         Panel, preview, docking, sync, screenshot modules
-│   ├── lib/             Shared helpers (devices, settings, URLs)
-│   ├── popup.*          Toolbar popup
+│   ├── devices.js       Device presets
+│   ├── viewer.*         Side-by-side device workspace
+│   ├── content/         bridge.js, emulate.js, floating.js
 │   └── icons/
-├── docs/
-│   ├── USER-GUIDE.md        How to use it, troubleshooting
-│   ├── DEVELOPER-GUIDE.md   Architecture, testing, releases
-│   └── AI-PROMPT.md         Ready-to-paste prompt for AI coding tools
-├── tests/               Automated browser tests (Playwright)
+├── docs/                Written for DevicePeek 2.2.0 – needs updating
+├── tests/               Playwright tests for 2.2.0 – need porting
 ├── scripts/             check.js (static checks), package.js (zip build)
 ├── CHANGELOG.md
-└── package.json         Developer tooling only (the extension has no dependencies)
+└── package.json
 ```
 
 ## Developer commands
